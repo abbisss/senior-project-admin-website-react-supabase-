@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: [
-      'garry-heliocentric-unchangeably.ngrok-free.dev'
+      
     ]
   }
 })
