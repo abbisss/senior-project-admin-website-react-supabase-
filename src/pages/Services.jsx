@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../supabase-client";
 import ServiceCard from "../components/ServiceCard";
 import AddService from "../components/AddService";
 import { Link } from "react-router-dom";
 import { Tooltip } from "bootstrap";
 
-// Updated to match database enum: service_type
+const LIMIT = 12;
+
 const serviceTypes = [
     { value: "all", label: "All 🌍" },
     { value: "restaurant", label: "Restaurant 🍽️" },
@@ -53,31 +54,27 @@ function Services() {
     const [searchName, setSearchName] = useState("");
     const [addServiceStatus, setAddServiceStatus] = useState(false);
     const [serviceAdded, setServiceAdded] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const pageRef = useRef(0);
+    const hasMoreRef = useRef(true);
+    const loadingRef = useRef(false);
 
-    async function fetchServices(type, priceRange, pricingType, name) {
+    async function fetchServices(type, priceRange, pricingType, name, pageNum, reset = false) {
+        if (loadingRef.current) return;
         setLoading(true);
+        loadingRef.current = true;
 
         let query = supabase
             .from("Service")
             .select(`*, Service_Image (url)`)
-            .eq("status", "approved");
+            .eq("status", "approved")
+            .range(pageNum * LIMIT, (pageNum + 1) * LIMIT - 1);
 
-        if (type && type !== "all") {
-            query = query.eq("type", type);
-        }
-
-        if (priceRange && priceRange !== "all") {
-            query = query.eq("price_range", priceRange);
-        }
-
-        if (pricingType && pricingType !== "all") {
-            query = query.eq("pricing_type", pricingType);
-        }
-
-        if (name && name.trim() !== "") {
-            query = query.or(
-                `name.ilike.%${name.trim()}%,town.ilike.%${name.trim()}%,governorate.ilike.%${name.trim()}%`
-            );
+        if (type !== "all") query = query.eq("type", type);
+        if (priceRange !== "all") query = query.eq("price_range", priceRange);
+        if (pricingType !== "all") query = query.eq("pricing_type", pricingType);
+        if (name.trim() !== "") {
+            query = query.or(`name.ilike.%${name.trim()}%,town.ilike.%${name.trim()}%,governorate.ilike.%${name.trim()}%`);
         }
 
         const { data, error } = await query;
@@ -85,18 +82,48 @@ function Services() {
         if (error) {
             console.error("Fetch services error:", error);
             setLoading(false);
+            loadingRef.current = false;
             return;
         }
 
-        setServices(data || []);
+        if (data.length < LIMIT) {
+            setHasMore(false);
+            hasMoreRef.current = false;
+        } else {
+            setHasMore(true);
+            hasMoreRef.current = true;
+        }
+
+        setServices(prev => reset ? data : [...prev, ...data]);
         setLoading(false);
+        loadingRef.current = false;
     }
 
     useEffect(() => {
+        pageRef.current = 0;
+        hasMoreRef.current = true;
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchServices(selectedServiceType, selectedPriceRange, selectedPricingType, searchName);
-         
+        setHasMore(true);
+        fetchServices(selectedServiceType, selectedPriceRange, selectedPricingType, searchName, 0, true);
     }, [selectedServiceType, selectedPriceRange, selectedPricingType, searchName, serviceAdded]);
+
+    // Infinite scroll
+    useEffect(() => {
+        const handleScroll = () => {
+            if (
+                window.innerHeight + window.scrollY >= document.body.offsetHeight - 300 &&
+                hasMoreRef.current && //user is 300px from bottom
+                !loadingRef.current
+            ) {
+                const nextPage = pageRef.current + 1;
+                pageRef.current = nextPage;
+                fetchServices(selectedServiceType, selectedPriceRange, selectedPricingType, searchName, nextPage, false);
+            }
+        };
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll); //cleanup
+
+    }, [selectedServiceType, selectedPriceRange, selectedPricingType, searchName]);
 
     useEffect(() => {
         const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
@@ -147,8 +174,7 @@ function Services() {
                 {serviceTypes.map((type) => (
                     <button
                         key={type.value}
-                        className={`place-type-btn ${selectedServiceType === type.value ? "selected-place-type" : ""
-                            }`}
+                        className={`place-type-btn ${selectedServiceType === type.value ? "selected-place-type" : ""}`}
                         onClick={() => setSelectedServiceType(type.value)}
                     >
                         {type.label}
@@ -161,8 +187,7 @@ function Services() {
                 {priceRanges.map((range) => (
                     <button
                         key={range.value}
-                        className={`place-type-btn ${selectedPriceRange === range.value ? "selected-place-type" : ""
-                            }`}
+                        className={`place-type-btn ${selectedPriceRange === range.value ? "selected-place-type" : ""}`}
                         onClick={() => setSelectedPriceRange(range.value)}
                     >
                         {range.label}
@@ -176,8 +201,7 @@ function Services() {
                     {pricingTypes.map((pt) => (
                         <button
                             key={pt.value}
-                            className={`place-type-btn ${selectedPricingType === pt.value ? "selected-place-type" : ""
-                                }`}
+                            className={`place-type-btn ${selectedPricingType === pt.value ? "selected-place-type" : ""}`}
                             onClick={() => setSelectedPricingType(pt.value)}
                         >
                             {pt.label}
@@ -202,9 +226,14 @@ function Services() {
 
                 {services.length === 0 && !loading && (
                     <div className="col-12">
-                        <br />
-                        <br />
+                        <br /><br />
                         <p className="text-center">No services found for the selected filters.</p>
+                    </div>
+                )}
+
+                {!hasMore && services.length > 0 && (
+                    <div className="col-12 text-center text-muted pb-4">
+                        <small>All services loaded</small>
                     </div>
                 )}
             </div>

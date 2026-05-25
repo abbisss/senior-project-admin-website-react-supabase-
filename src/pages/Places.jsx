@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../supabase-client";
 import PlaceCard from "../components/PlaceCard";
 import AddPlace from "../components/AddPlace";
 import { Link } from "react-router-dom";
 import { Tooltip } from "bootstrap";
+
+const LIMIT = 12;
 
 const placeTypes = [
     { value: "all", label: "All 🌍" },
@@ -32,45 +34,75 @@ function Places() {
     const difficultyLevels = ["no choice", "easy", "medium", "hard"];
     const [placeAdded, setPlaceAdded] = useState(false);
 
-    async function fetchPlaces(type, difficulty, name) {
+    const [hasMore, setHasMore] = useState(true);
+    const pageRef = useRef(0);
+    const hasMoreRef = useRef(true);
+    const loadingRef = useRef(false);
+
+    async function fetchPlaces (type, difficulty, name, pageNum, reset = false) {
+        if (loadingRef.current) return;
         setLoading(true);
+        loadingRef.current = true;
 
         let query = supabase
             .from("Place")
-            .select(` *, Place_Image (url) `)
-            .eq("status", "approved");
+            .select(`*, Place_Image (url)`)
+            .eq("status", "approved")
+            .range(pageNum * LIMIT, (pageNum + 1) * LIMIT - 1);
 
-        // filter by type
-        if (type && type !== "all") {
-            query = query.eq("type", type);
-        }
-
-        // filter by difficulty
-        if (difficulty !== undefined && difficulty !== null && difficulty !== 0) {
+        if (type && type !== "all") query = query.eq("type", type);
+        if (difficulty !== 0)
             query = query.eq("difficulty", difficultyLevels[difficulty]);
-        }
-
-        //filter by name
-        if (name && name.trim() !== "") {
+        if (name && name.trim() !== "")
             query = query.or(`name.ilike.%${name.trim()}%,town.ilike.%${name.trim()}%,governorate.ilike.%${name.trim()}%`);
-        }
 
         const { data, error } = await query;
 
         if (error) {
             console.error("Fetch places error:", error);
             setLoading(false);
+            loadingRef.current = false;
             return;
         }
 
-        setPlaces(data || []);
-        setLoading(false);
-    }
+        if (data.length < LIMIT) {
+            setHasMore(false);
+            hasMoreRef.current = false;
+        } else {
+            setHasMore(true);
+            hasMoreRef.current = true;
+        }
 
+        setPlaces(prev => reset ? data : [...prev, ...data]);
+        setLoading(false);
+        loadingRef.current = false;
+    };
+
+    // Reset on filter change
     useEffect(() => {
-        fetchPlaces(selectedPlaceType, difficulty, searchName);
+        pageRef.current = 0;
+        hasMoreRef.current = true;
+        setHasMore(true);
+        fetchPlaces(selectedPlaceType, difficulty, searchName, 0, true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedPlaceType, difficulty, searchName, placeAdded]);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (
+                window.innerHeight + window.scrollY >= document.body.offsetHeight - 300 &&
+                hasMoreRef.current &&
+                !loadingRef.current
+            ) {
+                const nextPage = pageRef.current + 1;
+                pageRef.current = nextPage;
+                fetchPlaces(selectedPlaceType, difficulty, searchName, nextPage, false);
+            }
+        };
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedPlaceType, difficulty, searchName]);
 
     useEffect(() => {
         const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
@@ -104,15 +136,15 @@ function Places() {
                         </button>
                     </Link>
                 </div>
-
             </div>
+
             {addPlaceStatus && <AddPlace addPlaceStatus={addPlaceStatus} setAddPlaceStatus={setAddPlaceStatus} setPlaceAdded={setPlaceAdded} />}
+
             <div className="container places-type-buttons">
                 {placeTypes.map((type) => (
                     <button
                         key={type.value}
-                        className={`place-type-btn ${selectedPlaceType === type.value ? "selected-place-type" : ""
-                            }`}
+                        className={`place-type-btn ${selectedPlaceType === type.value ? "selected-place-type" : ""}`}
                         onClick={() => setSelectedPlaceType(type.value)}
                     >
                         {type.label}
@@ -131,7 +163,6 @@ function Places() {
                     onChange={(e) => setDifficulty(Number(e.target.value))}
                     className="difficulty-slider"
                 />
-
                 <div className="slider-labels">
                     <span className={difficulty === 0 ? "active" : ""}>No choice</span>
                     <span className={difficulty === 1 ? "active" : ""}>Easy</span>
@@ -154,9 +185,13 @@ function Places() {
                 )}
                 {places.length === 0 && !loading && (
                     <div className="col-12">
-                        <br />
-                        <br />
+                        <br /><br />
                         <p className="text-center">No places found for the selected type.</p>
+                    </div>
+                )}
+                {!hasMore && places.length > 0 && (
+                    <div className="col-12 text-center text-muted pb-4">
+                        <small>All places loaded</small>
                     </div>
                 )}
             </div>
