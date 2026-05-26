@@ -37,8 +37,10 @@ function ServiceDetails() {
         if (!id) return;
         const { data, error } = await supabase
             .from("Service")
-            .select("*, Service_Image (url), User:created_by(name)")
+            .select(`*, Service_Image!inner(url, status),
+                 User:created_by(name)`)
             .eq("service_id", id)
+            .eq("Service_Image.status", "approved")
             .single();
         if (error) {
             console.error("Error fetching service details:", error);

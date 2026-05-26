@@ -19,6 +19,7 @@ function Dashboard() {
         percentageNewServices: "",
         totalPendings: "",
         PendingState: "",
+
     });
 
     const [favorite_places, setFavoritePlaces] = useState([]);
@@ -39,6 +40,9 @@ function Dashboard() {
     const [pendingPlaces, setPendingPlaces] = useState([]);
     const [pendingServices, setPendingServices] = useState([]);
 
+    const [pendingPlacesImages, setPendingPlacesImages] = useState([]);
+    const [pendingServicesImages, setPendingServicesImages] = useState([]);
+
     async function getPlatformOverViewStats() {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -53,7 +57,10 @@ function Dashboard() {
             { data: services, error: servicesError },
             { data: new_services, error: newServicesError },
             { data: placePendings },
-            { data: servicePendings }
+            { data: servicePendings },
+            { data: serviceImagePendings },
+            { data: placeImagePendings },
+
         ] = await Promise.all([
             supabase.from("User").select("user_id"),
             supabase
@@ -80,6 +87,9 @@ function Dashboard() {
 
             supabase.from("Place").select("place_id").eq("status", "pending"),
             supabase.from("Service").select("service_id").eq("status", "pending"),
+
+            supabase.from("Service_Image").select("image_id").eq("status", "pending"),
+            supabase.from("Place_Image").select("image_id").eq("status", "pending")
         ]);
 
         if (usersError || newUsersError || placesError || newPlacesError || servicesError || newServicesError) {
@@ -105,7 +115,7 @@ function Dashboard() {
             services_count === 0 ? "0" : ((new_services_count / services_count) * 100).toFixed(2);
 
         const pendings =
-            (placePendings?.length || 0) + (servicePendings?.length || 0);
+            (placePendings?.length || 0) + (servicePendings?.length || 0) + (serviceImagePendings?.length || 0) + (placeImagePendings?.length || 0);
 
         const pending_status =
             pendings < 20
@@ -121,6 +131,7 @@ function Dashboard() {
             percentageNewServices: perc_new_services,
             totalPendings: pendings.toString(),
             PendingState: pending_status,
+
         });
     }
 
@@ -767,6 +778,84 @@ function Dashboard() {
         const date = new Date().toISOString().split("T")[0];
         saveAs(new Blob([buffer], { type: "application/octet-stream" }), `Daherni_Report_${date}.xlsx`);
     }
+
+    async function fetchPendingPlacesImages() {
+        const { data, error } = await supabase
+            .from('Place_Image')
+            .select('*, Place(name)')
+            .eq('status', "pending");
+        if (error) {
+            console.error("Error fetching place images:", error);
+            return;
+        } else {
+            setPendingPlacesImages(data);
+        }
+    }
+
+    async function fetchPendingServiceImages() {
+        const { data, error } = await supabase
+            .from('Service_Image')
+            .select('*, Service(name)')
+            .eq('status', "pending");
+        if (error) {
+            console.error("Error fetching service images:", error);
+            return;
+        } else {
+            setPendingServicesImages(data);
+        }
+    }
+
+    async function acceptServiceImage(id) {
+        const { error } = await supabase.from("Service_Image")
+            .update({ status: "approved" })
+            .eq("image_id", id)
+        if (error) {
+            toast.error("failed to accept request!");
+            return;
+        }
+        toast.success("request approved successfully!");
+        fetchPendingServiceImages();
+        getPlatformOverViewStats();
+    }
+
+    async function acceptPlaceImage(id) {
+        const { error } = await supabase.from("Place_Image")
+            .update({ status: "approved" })
+            .eq("image_id", id)
+        if (error) {
+            toast.error("failed to accept request!");
+            return;
+        }
+        toast.success("request approved successfully!");
+        fetchPendingPlacesImages();
+        getPlatformOverViewStats();
+    }
+
+    async function rejectPlaceImage(id) {
+        const { error } = await supabase.from("Place_Image")
+            .update({ status: "rejected" })
+            .eq("image_id", id);
+        if (error) {
+            toast.error("Failed to reject image!");
+            return;
+        }
+        toast.success("Image rejected successfully!");
+        fetchPendingPlacesImages();
+        getPlatformOverViewStats();
+    }
+
+    async function rejectServiceImage(id) {
+        const { error } = await supabase.from("Service_Image")
+            .update({ status: "rejected" })
+            .eq("image_id", id);
+        if (error) {
+            toast.error("Failed to reject image!");
+            return;
+        }
+        toast.success("Image rejected successfully!");
+        fetchPendingServiceImages();
+        getPlatformOverViewStats();
+    }
     useEffect(() => {
 
         getPlatformOverViewStats();
@@ -777,6 +866,8 @@ function Dashboard() {
         fetchServices();
         fetchPendingPlacesDetails();
         fetchPendingServicesDetails();
+        fetchPendingPlacesImages();
+        fetchPendingServiceImages();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
@@ -1306,7 +1397,113 @@ function Dashboard() {
                     </div>
                 </div>
 
-                <div className="mb-4">
+
+                <div
+                    className="container-fluid px-0 mt-2 overflow-y-auto overflow-x-hidden"
+                    style={{ maxHeight: "500px" }}
+                >
+                    <div className="row g-3">
+
+                        {/* Pending Place Images */}
+                        <div className="col-12 col-md-6">
+                            <div className="card border-0 shadow-sm rounded-4 p-4 bg-card">
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h4 className="mb-0">
+                                            <i className="bi bi-geo-alt-fill text-success small"></i> Pending Place Image Requests
+                                        </h4>
+                                        <small className="text-success">Awaiting admin review & approval</small>
+                                    </div>
+                                    <span className="badge rounded-pill bg-success d-flex align-items-center px-3 fs-6">
+                                        {pendingPlacesImages.length} pending
+                                    </span>
+                                </div>
+
+                                {pendingPlacesImages.length === 0 ? (
+                                    <p className="text-muted text-center my-3">No pending place images</p>
+                                ) : (
+                                    <div className="d-flex flex-column gap-3">
+                                        {pendingPlacesImages.map((img) => (
+                                            <div key={img.image_id} className="d-flex align-items-center justify-content-between border rounded-3 p-2">
+                                                <img
+                                                    src={img.url}
+                                                    alt="place"
+                                                    style={{ width: 150, height: 150, objectFit: "cover", borderRadius: 10 }}
+                                                />
+                                                <span className="text-muted small mx-2">Name: {img.Place.name}</span>
+                                                <div className="d-flex gap-2">
+                                                    <button
+                                                        className="btn btn-sm btn-success rounded-3"
+                                                        onClick={() => acceptPlaceImage(img.image_id)}
+                                                    >
+                                                        <i className="bi bi-check-lg"></i> Accept
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-danger rounded-3"
+                                                        onClick={() => rejectPlaceImage(img.image_id)}
+                                                    >
+                                                        <i className="bi bi-x-lg"></i> Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Pending Service Images */}
+                        <div className="col-12 col-md-6">
+                            <div className="card border-0 shadow-sm rounded-4 p-4 bg-card">
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h4 className="mb-0">
+                                            <i className="bi bi-briefcase-fill text-warning small"></i> Pending Service Image Requests
+                                        </h4>
+                                        <small className="text-success">Awaiting admin review & approval</small>
+                                    </div>
+                                    <span className="badge rounded-pill bg-warning d-flex align-items-center px-3 fs-6">
+                                        {pendingServicesImages.length} pending
+                                    </span>
+                                </div>
+
+                                {pendingServicesImages.length === 0 ? (
+                                    <p className="text-muted text-center my-3">No pending service images</p>
+                                ) : (
+                                    <div className="d-flex flex-column gap-3">
+                                        {pendingServicesImages.map((img) => (
+                                            <div key={img.image_id} className="d-flex align-items-center justify-content-between border rounded-3 p-2">
+                                                <img
+                                                    src={img.url}
+                                                    alt="service"
+                                                    style={{ width: 150, height: 140, objectFit: "cover", borderRadius: 10 }}
+                                                />
+                                                <span className="text-muted small mx-2">Name: {img.Service.name}</span>
+                                                <div className="d-flex gap-2">
+                                                    <button
+                                                        className="btn btn-sm btn-success rounded-3"
+                                                        onClick={() => acceptServiceImage(img.image_id)}
+                                                    >
+                                                        <i className="bi bi-check-lg"></i> Accept
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-danger rounded-3"
+                                                        onClick={() => rejectServiceImage(img.image_id)}
+                                                    >
+                                                        <i className="bi bi-x-lg"></i> Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div className="mb-4 mt-4">
                     <h6 className="text-success fw-semibold mb-3">
                         <i className="bi bi-download me-1"></i> Export & Reports
                     </h6>

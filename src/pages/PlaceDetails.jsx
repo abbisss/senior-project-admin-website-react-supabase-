@@ -39,8 +39,18 @@ function PlaceDetails() {
 
     async function fetchPlaceDetails() {
         if (!id) return;
-        const { data, error } = await supabase.from('Place').select('*, Place_Image (url), User:created_by(name)')
-            .eq('place_id', id).single();
+
+        const { data, error } = await supabase
+            .from("Place")
+            .select(`
+            *,
+            Place_Image!inner(url, status),
+            User:created_by(name)
+        `)
+            .eq("place_id", id)
+            .eq("Place_Image.status", "approved")
+            .single();
+
         if (error) {
             console.error("Error fetching place details:", error);
             return;
@@ -296,8 +306,11 @@ function PlaceDetails() {
     }, [dbUser?.user_id, id]);
 
     useEffect(() => {
-        if (place && place.Place_Image) {
-            const urls = place.Place_Image.map(image => image.url);
+        if (place?.Place_Image) {
+            const urls = place.Place_Image
+                .filter(img => img.status === "approved")
+                .map(img => img.url);
+
             setImagesUrls(urls);
         }
     }, [place]);
