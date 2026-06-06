@@ -145,7 +145,7 @@ function ManageUsers() {
         refresh_token: currentSession.refresh_token,
       });
 
-      toast.success("Admin added successfully!");
+      toast.success("Admin added successfully to verify and use account check your email!");
       getUsersStats();
       setAdminName("");
       setAdminEmail("");
@@ -166,36 +166,7 @@ function ManageUsers() {
     setAdminPassword("");
   }
 
-  async function deleteAdmin(userId) {
-    try {
-      await supabase.from("Favorite_Place").delete().eq("user_id", userId);
-      await supabase.from("Favorite_Service").delete().eq("user_id", userId);
-
-      await supabase.from("Place_Review").delete().eq("user_id", userId);
-      await supabase.from("Service_Review").delete().eq("user_id", userId);
-
-      await supabase.from("Trip").delete().eq("user_id", userId);
-
-      await supabase.from("Place").delete().eq("created_by", userId);
-      await supabase.from("Service").delete().eq("created_by", userId);
-
-      const { error } = await supabase
-        .from("User")
-        .delete()
-        .eq("user_id", userId);
-
-      if (error) throw error;
-
-      toast.success("Admin deleted successfully");
-
-      getAdmins();
-      getUsersStats();
-
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete admin");
-    }
-  }
+  
   async function getAdmins() {
     const { data, error } = await supabase
       .from("User")
@@ -230,16 +201,26 @@ function ManageUsers() {
 
   async function deleteUser(userId) {
     try {
+      const { data: userTrips } = await supabase
+        .from("Trip")
+        .select("trip_id")
+        .eq("user_id", userId);
+
+      const tripIds = userTrips?.map((t) => t.trip_id) ?? [];
+
       await supabase.from("Favorite_Place").delete().eq("user_id", userId);
       await supabase.from("Favorite_Service").delete().eq("user_id", userId);
-
       await supabase.from("Place_Review").delete().eq("user_id", userId);
       await supabase.from("Service_Review").delete().eq("user_id", userId);
 
-      await supabase.from("Trip").delete().eq("user_id", userId);
+      if (tripIds.length > 0) {
+        await supabase.from("Trip_Places").delete().in("trip_id", tripIds);
+        await supabase.from("Trip_Services").delete().in("trip_id", tripIds);
+        await supabase.from("Trip").delete().in("trip_id", tripIds);
+      }
 
-      await supabase.from("Place").delete().eq("created_by", userId);
-      await supabase.from("Service").delete().eq("created_by", userId);
+      await supabase.from("Place").update({ created_by: null }).eq("created_by", userId);
+      await supabase.from("Service").update({ created_by: null }).eq("created_by", userId);
 
       const { error } = await supabase
         .from("User")
@@ -249,8 +230,8 @@ function ManageUsers() {
       if (error) throw error;
 
       toast.success("User deleted successfully");
-
       getUsers();
+      getAdmins();
       getUsersStats();
 
     } catch (err) {
@@ -423,7 +404,7 @@ function ManageUsers() {
                     <button className="btn btn-danger"
                       onClick={() => {
                         if (window.confirm("Are you sure you want to delete admin!?")) {
-                          deleteAdmin(admin.user_id);
+                          deleteUser(admin.user_id);
                         }
                       }}
                     >Delete</button>
