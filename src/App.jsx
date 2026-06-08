@@ -14,6 +14,7 @@ import PlaceDetails from "./pages/PlaceDetails";
 import ServiceDetails from "./pages/ServiceDetails";
 import FavoriteServices from "./pages/FavoriteServices";
 import Place_Service from "./pages/Place_Service";
+import NearbyServices from "./pages/NearbyServices";
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             <Route path="/favorite-services" element={<FavoriteServices />}></Route>
             
             <Route path="/place_service" element={<Place_Service />}></Route>
+            <Route path="/place-nearby-services/:id" element={<NearbyServices />}></Route>
           </Route>
         </Route>
       </Routes>

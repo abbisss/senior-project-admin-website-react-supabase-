@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabase-client";
 import { toast } from "react-toastify";
 import AddPlaceService from "../components/AddPlaceService";
-
+import {useNavigate, Link} from "react-router-dom";
 const serviceTypes = [
     { value: "all", label: "All 🌍" },
     { value: "restaurant", label: "Restaurant 🍽️" },
@@ -24,6 +24,7 @@ const serviceTypes = [
 ];
 
 function Place_Service() {
+    const navigate = useNavigate();
     const [places, setPlaces] = useState([]);
     const [placeSearchName, setPlaceSearchName] = useState("");
     const [showDropdown, setShowDropdown] = useState(false);
@@ -496,7 +497,8 @@ function Place_Service() {
                         </thead>
                         <tbody>
                             {services.map((s) => (
-                                <tr key={s.service_id} className="align-middle text-center">
+                                <tr key={s.service_id} className="align-middle text-center"
+                                onClick={() => navigate(`/services/${s.service_id}`)}>
 
                                     <td className="fw-semibold">{s.name}</td>
 

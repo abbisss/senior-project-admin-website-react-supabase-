@@ -6,8 +6,11 @@ import { IoArrowBack } from "react-icons/io5";
 import EditPlaceForm from "../components/EditPlace";
 import MapViewer from "../components/MapViewer";
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 function PlaceDetails() {
+    const navigate = useNavigate();
+    
     const { dbUser } = useContext(UserContext);
     const { id } = useParams(); // Get the place ID from the URL parameters
     const [place, setPlace] = useState(null);
@@ -330,7 +333,7 @@ function PlaceDetails() {
         <>
             <button className="btn btn-accent text-white fw-bold position-fixed top-0 start-0 z-3 my-mt rounded-pill"
                 onClick={() => window.history.back()}>
-                <IoArrowBack /> Back to places
+                <IoArrowBack /> Back 
             </button>
             <div className="place-details-page">
                 {loading ? (
@@ -377,7 +380,7 @@ function PlaceDetails() {
 
                         <div className="mt-3 d-flex justify-content-space-between gap-2 mt-4">
                             <button className={`btn ${isFavorite ? "btn-danger" : "btn-outline-success"}
-                                               me-2 p-2 place-fav-btn`}
+                                              place-fav-btn`}
                                 onClick={toggleFavorite}>
                                 <span className={isFavorite ? "" : "text-danger"}>♥</span>
                                 {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
@@ -389,7 +392,13 @@ function PlaceDetails() {
                                     onClick={deletePlace}
                                 >
                                     Delete Place</button>
+                               
                             </div>
+                             <button className="btn btn-secondary text-white w-50 " 
+                             onClick={() => navigate(`/place-nearby-services/${id}`)}
+                             >
+                                    View nearby services
+                                </button>
 
                             {editOpen && (<EditPlaceForm place={place} onClose={() => setEditOpen(false)} />)}
                         </div>

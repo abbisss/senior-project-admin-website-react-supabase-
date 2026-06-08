@@ -30,14 +30,14 @@ const serviceTypes = [
 const priceRanges = [
     { value: "all", label: "All 💰" },
     { value: "cheap", label: " Cheap" },
-    { value: "budget", label: "Budget $" },
-    { value: "moderate", label: "Moderate $$" },
-    { value: "expensive", label: "Expensive $$$" },
-    { value: "luxury", label: "Luxury $$$$" },
+    { value: "budget", label: "Budget" },
+    { value: "moderate", label: "Moderate" },
+    { value: "expensive", label: "Expensive" },
+    { value: "luxury", label: "Luxury" },
 ];
 
 const pricingTypes = [
-    { value: "all", label: "All" },
+    { value: "all", label: "All 🏷️" },
     { value: "free", label: "Free" },
     { value: "per_item", label: "Per Item" },
     { value: "per_person", label: "Per Person" },

@@ -303,7 +303,7 @@ function ServiceDetails() {
         <>
             <button className="btn btn-accent text-white fw-bold position-fixed top-0 start-0 z-3 my-mt rounded-pill"
                 onClick={() => window.history.back()}>
-                <IoArrowBack /> Back to services
+                <IoArrowBack /> Back
             </button>
             <div className="place-details-page">
                 {loading ? (
