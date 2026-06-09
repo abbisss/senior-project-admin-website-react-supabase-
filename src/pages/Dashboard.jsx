@@ -454,6 +454,21 @@ function Dashboard() {
             toast.error("failed to accept request!");
             return;
         }
+
+        const userId = pendingPlaces.find(p => p.place_id === id)?.created_by;
+        if (userId) {
+            await supabase
+                .from("Notification")
+                .insert([
+                    {
+                        user_id: userId,
+                        title: "Place Approved",
+                        message: "Your place has been approved",
+                        type: "place_approved",
+                    }
+                ]);
+        }
+
         toast.success("request approved successfully!");
         fetchPlaces();
         fetchPendingPlacesDetails();
@@ -501,6 +516,21 @@ function Dashboard() {
             console.error("DB delete failed:", error);
             return;
         }
+
+        const userId = pendingPlaces.find(p => p.place_id === id)?.created_by;
+        if (userId) {
+            await supabase
+                .from("Notification")
+                .insert([
+                    {
+                        user_id: userId,
+                        title: "Place Rejected",
+                        message: "Your place request has been rejected",
+                        type: "place_rejected",
+                    }
+                ]);
+        }
+
         toast.success("request rejected successfully!");
         fetchPlaces();
         fetchPendingPlacesDetails();
@@ -515,6 +545,21 @@ function Dashboard() {
             toast.error("failed to accept request!");
             return;
         }
+
+        const userId = pendingServices.find(s => s.service_id === id)?.created_by;
+        if (userId) {
+            await supabase
+                .from("Notification")
+                .insert([
+                    {
+                        user_id: userId,
+                        title: "Service Approved",
+                        message: "Your service has been approved",
+                        type: "service_approved",
+                    }
+                ]);
+        }
+
         toast.success("request approved successfully!");
         fetchServices();
         fetchPendingServicesDetails();
@@ -554,6 +599,21 @@ function Dashboard() {
             console.error("DB delete failed:", error);
             return;
         }
+
+        const userId = pendingServices.find(s => s.service_id === id)?.created_by;
+        if (userId) {
+            await supabase
+                .from("Notification")
+                .insert([
+                    {
+                        user_id: userId,
+                        title: "Service Rejected",
+                        message: "Your service request has been rejected",
+                        type: "service_rejected",
+                    }
+                ]);
+        }
+
         toast.success("request rejected successfully!");
         fetchServices();
         fetchPendingServicesDetails();
@@ -806,12 +866,33 @@ function Dashboard() {
     }
 
     async function acceptServiceImage(id) {
-        const { error } = await supabase.from("Service_Image")
+        const { data, error } = await supabase.from("Service_Image")
             .update({ status: "approved" })
             .eq("image_id", id)
+            .select("service_id");
         if (error) {
             toast.error("failed to accept request!");
             return;
+        }
+        const serviceId = data?.[0]?.service_id;
+
+        if (serviceId) {
+            const { data: service } = await supabase
+                .from("Service")
+                .select("created_by")
+                .eq("service_id", serviceId)
+                .single();
+
+            if (service?.created_by) {
+                await supabase.from("Notification").insert([
+                    {
+                        user_id: service.created_by,
+                        title: "Service Image Approved",
+                        message: "Your service image has been approved",
+                        type: "service_image_approved",
+                    }
+                ]);
+            }
         }
         toast.success("request approved successfully!");
         fetchPendingServiceImages();
@@ -819,12 +900,33 @@ function Dashboard() {
     }
 
     async function acceptPlaceImage(id) {
-        const { error } = await supabase.from("Place_Image")
+        const { data, error } = await supabase.from("Place_Image")
             .update({ status: "approved" })
             .eq("image_id", id)
+            .select("place_id");
         if (error) {
             toast.error("failed to accept request!");
             return;
+        }
+
+        const placeId = data?.[0]?.place_id;
+        if (placeId) {
+            const { data: place } = await supabase
+                .from("Place")
+                .select("created_by")
+                .eq("place_id", placeId)
+                .single();
+
+            if (place?.created_by) {
+                await supabase.from("Notification").insert([
+                    {
+                        user_id: place.created_by,
+                        title: "Place Image Approved",
+                        message: "Your place image has been approved",
+                        type: "place_image_approved",
+                    }
+                ]);
+            }
         }
         toast.success("request approved successfully!");
         fetchPendingPlacesImages();
@@ -832,12 +934,34 @@ function Dashboard() {
     }
 
     async function rejectPlaceImage(id) {
-        const { error } = await supabase.from("Place_Image")
+        const { data, error } = await supabase.from("Place_Image")
             .update({ status: "rejected" })
-            .eq("image_id", id);
+            .eq("image_id", id)
+            .select("place_id");
         if (error) {
             toast.error("Failed to reject image!");
             return;
+        }
+
+        const placeId = data?.[0]?.place_id;
+
+        if (placeId) {
+            const { data: place } = await supabase
+                .from("Place")
+                .select("created_by")
+                .eq("place_id", placeId)
+                .single();
+
+            if (place?.created_by) {
+                await supabase.from("Notification").insert([
+                    {
+                        user_id: place.created_by,
+                        title: "Place Image Rejected",
+                        message: "Your place image has been rejected",
+                        type: "place_image_rejected",
+                    }
+                ]);
+            }
         }
         toast.success("Image rejected successfully!");
         fetchPendingPlacesImages();
@@ -845,12 +969,33 @@ function Dashboard() {
     }
 
     async function rejectServiceImage(id) {
-        const { error } = await supabase.from("Service_Image")
+        const {data, error } = await supabase.from("Service_Image")
             .update({ status: "rejected" })
-            .eq("image_id", id);
+            .eq("image_id", id)
+            .select("service_id");
         if (error) {
             toast.error("Failed to reject image!");
             return;
+        }
+
+        const serviceId = data?.[0]?.service_id;
+        if (serviceId) {
+            const { data: service } = await supabase
+                .from("Service")
+                .select("created_by")
+                .eq("service_id", serviceId)
+                .single();
+
+            if (service?.created_by) {
+                await supabase.from("Notification").insert([
+                    {
+                        user_id: service.created_by,
+                        title: "Service Image Rejected",
+                        message: "Your service image has been rejected",
+                        type: "service_image_rejected",
+                    }
+                ]);
+            }
         }
         toast.success("Image rejected successfully!");
         fetchPendingServiceImages();

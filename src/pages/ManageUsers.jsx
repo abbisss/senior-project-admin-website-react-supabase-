@@ -212,6 +212,7 @@ function ManageUsers() {
       await supabase.from("Favorite_Service").delete().eq("user_id", userId);
       await supabase.from("Place_Review").delete().eq("user_id", userId);
       await supabase.from("Service_Review").delete().eq("user_id", userId);
+      await supabase.from("Notification").delete().eq("user_id", userId);
 
       if (tripIds.length > 0) {
         await supabase.from("Trip_Places").delete().in("trip_id", tripIds);
