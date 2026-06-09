@@ -447,14 +447,16 @@ function Dashboard() {
     }
 
     async function acceptPlace(id) {
-        const { error } = await supabase.from("Place")
+        const {data, error } = await supabase.from("Place")
             .update({ status: "approved" })
             .eq("place_id", id)
+            .select("name");
         if (error) {
             toast.error("failed to accept request!");
             return;
         }
 
+        const placeName = data?.[0]?.name || "place";
         const userId = pendingPlaces.find(p => p.place_id === id)?.created_by;
         if (userId) {
             await supabase
@@ -463,7 +465,7 @@ function Dashboard() {
                     {
                         user_id: userId,
                         title: "Place Approved",
-                        message: "Your place has been approved",
+                        message: `Your request adding ${placeName} has been approved`,
                         type: "place_approved",
                     }
                 ]);
@@ -485,7 +487,7 @@ function Dashboard() {
             .from("Place_Image")
             .select("url")
             .eq("place_id", id);
-
+            
         if (fetchError) {
             console.error(fetchError);
             return;
@@ -497,7 +499,7 @@ function Dashboard() {
             );
         });
 
-        // 2. delete storage files
+        // delete storage files
         const { error: storageError } = await supabase.storage
             .from("places")
             .remove(paths);
@@ -507,7 +509,12 @@ function Dashboard() {
             return;
         }
 
-        // 3. delete DB AFTER
+        const {data:name} = await supabase.from("Place")
+                                          .select("name")
+                                          .eq("place_id", id);
+        const placeName = name?.[0].name || "place";
+    
+        // delete DB AFTER
         const { error } = await supabase.rpc("delete_place", {
             p_id: id,
         });
@@ -525,7 +532,7 @@ function Dashboard() {
                     {
                         user_id: userId,
                         title: "Place Rejected",
-                        message: "Your place request has been rejected",
+                        message: `Your request adding ${placeName} has been rejected`,
                         type: "place_rejected",
                     }
                 ]);
@@ -538,13 +545,17 @@ function Dashboard() {
     }
 
     async function acceptService(id) {
-        const { error } = await supabase.from("Service")
+        const {data, error } = await supabase.from("Service")
             .update({ status: "approved" })
             .eq("service_id", id)
+            .select("name");
+
         if (error) {
             toast.error("failed to accept request!");
             return;
         }
+
+        const serviceName = data?.[0]?.name || "service";
 
         const userId = pendingServices.find(s => s.service_id === id)?.created_by;
         if (userId) {
@@ -554,7 +565,7 @@ function Dashboard() {
                     {
                         user_id: userId,
                         title: "Service Approved",
-                        message: "Your service has been approved",
+                        message: `Your request adding ${serviceName} has been approved`,
                         type: "service_approved",
                     }
                 ]);
@@ -594,6 +605,11 @@ function Dashboard() {
         await supabase.from("Service_Review").delete().eq("service_id", id);
         await supabase.from("Place_Service").delete().eq("service_id", id);
 
+        const {data:name} = await supabase.from("Service")
+                                          .select("name")
+                                          .eq("service_id", id);
+        const serviceName = name?.[0].name || "service";
+
         const { error } = await supabase.from("Service").delete().eq("service_id", id);
         if (error) {
             console.error("DB delete failed:", error);
@@ -608,7 +624,7 @@ function Dashboard() {
                     {
                         user_id: userId,
                         title: "Service Rejected",
-                        message: "Your service request has been rejected",
+                        message: `Your request Adding ${serviceName} request has been rejected`,
                         type: "service_rejected",
                     }
                 ]);
