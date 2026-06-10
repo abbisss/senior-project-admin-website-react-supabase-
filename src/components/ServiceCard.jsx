@@ -101,7 +101,7 @@ function ServiceCard({ service, onUnFavorite }) {
     }, [service.service_id, dbUser.user_id]);
 
     return (
-        <div className="d-flex flex-column text-center place-card">
+        <div className="d-flex flex-column text-center place-card position-relative">
             <div
                 className={`position-absolute top-0 end-0 m-2 z-3 rounded-pill 
                 d-flex align-items-center justify-content-center favorite-heart 
